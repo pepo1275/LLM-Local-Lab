@@ -139,51 +139,69 @@ def test_requirements_packages_installed():
 
 def test_model_multilingual_exists():
     """
-    CRITICAL: Validate paraphrase-multilingual-MiniLM-L12-v2 exists on HF Hub.
+    CRITICAL: Validate paraphrase-multilingual-MiniLM-L12-v2 is accessible.
 
-    This is the CPU baseline model. If it doesn't exist, the benchmark will fail.
+    This is the CPU baseline model. Validates by loading from cache or downloading.
+    Prefers local cache to avoid API authentication issues.
     """
     try:
-        from huggingface_hub import model_info
+        from sentence_transformers import SentenceTransformer
 
         model_id = 'paraphrase-multilingual-MiniLM-L12-v2'
-        info = model_info(model_id)
 
-        assert info is not None, f"Model {model_id} not found on Hugging Face Hub"
+        # Try to load model (uses cache first, downloads if needed)
+        # This is the actual check the benchmark does, so it's the most accurate
+        model = SentenceTransformer(model_id)
+
+        assert model is not None, f"Model {model_id} failed to load"
+
+        # Verify model has expected attributes
+        assert hasattr(model, 'encode'), "Model missing encode method"
+
+        print(f"✅ Model {model_id} loaded successfully from cache/download")
 
     except ImportError:
-        pytest.skip("huggingface_hub not installed, cannot validate model existence")
+        pytest.skip("sentence-transformers not installed")
     except Exception as e:
         pytest.fail(
             f"BLOCKING ERROR: Model 'paraphrase-multilingual-MiniLM-L12-v2' "
-            f"not accessible: {e}"
+            f"cannot be loaded: {e}"
         )
 
 
 def test_model_bge_legal_exists():
     """
-    HIGH RISK: Validate dariolopez/bge-m3-es-legal-tmp-6 exists on HF Hub.
+    HIGH RISK: Validate dariolopez/bge-m3-es-legal-tmp-6 is accessible.
 
     WARNING: Model name contains 'tmp-6' suggesting it might be temporary/private.
-    This could cause runtime failure if model is removed or access restricted.
+    Validates by attempting to load from cache or download.
+    If model doesn't exist, benchmark will fail at GPU test section.
     """
     try:
-        from huggingface_hub import model_info
+        from sentence_transformers import SentenceTransformer
 
         model_id = 'dariolopez/bge-m3-es-legal-tmp-6'
-        info = model_info(model_id)
 
-        assert info is not None, (
-            f"RISK CONFIRMED: Model {model_id} not found. "
-            f"This will cause benchmark to fail at line 60."
-        )
+        # Try to load model (uses cache first, downloads if needed)
+        # Note: This may take time on first run if downloading (~350MB)
+        model = SentenceTransformer(model_id)
+
+        assert model is not None, f"Model {model_id} failed to load"
+
+        # Verify model has expected attributes
+        assert hasattr(model, 'encode'), "Model missing encode method"
+
+        print(f"✅ Model {model_id} loaded successfully from cache/download")
 
     except ImportError:
-        pytest.skip("huggingface_hub not installed, cannot validate model existence")
+        pytest.skip("sentence-transformers not installed")
     except Exception as e:
+        # This is expected to fail if model is private/removed
+        # Benchmark will handle gracefully with try/except in line 59-89
         pytest.fail(
-            f"BLOCKING ERROR: Model 'dariolopez/bge-m3-es-legal-tmp-6' "
-            f"not accessible (likely private/removed): {e}"
+            f"RISK CONFIRMED: Model 'dariolopez/bge-m3-es-legal-tmp-6' "
+            f"cannot be loaded: {e}\n"
+            f"Benchmark will skip GPU test section but continue with CPU baseline."
         )
 
 

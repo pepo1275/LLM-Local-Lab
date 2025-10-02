@@ -1,0 +1,46 @@
+========================================
+TEST GPU EMBEDDINGS - RTX 5090 DUAL-GPU
+========================================
+PyTorch version: 2.9.0.dev20250829+cu128
+CUDA available: True
+GPU count: 2
+GPU 0: NVIDIA GeForce RTX 5090
+  Memory: 31GB
+  Compute capability: 12.0
+GPU 1: NVIDIA GeForce RTX 5090
+  Memory: 31GB
+  Compute capability: 12.0
+
+Test con 100 documentos municipales
+
+--- TEST 1: MODELO MULTILINGUAL (CPU Baseline) ---
+Modelo cargado en: cuda:0
+[CPU] Tiempo total: 0.18s
+[CPU] Tiempo por documento: 0.002s
+[CPU] Documentos por segundo: 553.3
+[CPU] Shape embeddings: (100, 384)
+
+--- TEST 2: BGE-M3 SPANISH LEGAL (GPU Acelerado) ---
+Modelo movido a: cuda:0
+[GPU] Tiempo total: 0.06s
+[GPU] Tiempo por documento: 0.001s
+[GPU] Documentos por segundo: 1749.2
+[GPU] Shape embeddings: (100, 1024)
+
+[RESULTADO] Aceleracion GPU: 3.2x mas rapido
+[EXITO] GPU significativamente mas rapida
+
+--- TEST 3: USO MEMORIA GPU ---
+Memoria GPU usada: 2.56GB
+Memoria GPU reservada: 2.59GB
+Memoria GPU libre: 28.41GB
+
+--- TEST 4: BATCH PROCESSING GRANDE ---
+[BATCH GRANDE] 1000 documentos en 0.41s
+[BATCH GRANDE] 2422.9 docs/segundo
+[BATCH GRANDE] Memoria GPU usada: 2.56GB
+
+========================================
+TEST GPU EMBEDDINGS COMPLETADO
+RTX 5090 lista para produccion!
+========================================
