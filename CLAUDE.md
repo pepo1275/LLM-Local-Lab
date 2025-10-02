@@ -31,9 +31,31 @@ LLM-Local-Lab is a professional experimentation and benchmarking repository for 
 
 ---
 
+## METHODOLOGY: RPVEA-A (Agent-Augmented)
+
+This project follows the **RPVEA-A methodology** - a testing-first, agent-augmented development framework that ensures quality, prevents errors, and leverages specialized AI agents.
+
+### **RPVEA Phases:**
+- **R**EVIEW: Analyze requirements and current state
+- **P**REPARE: Generate testing strategy (PRE/POST/Integration tests)
+- **V**ALIDATE: Execute PRE-tests, get user approval
+- **E**XECUTE: Implement with confidence (baseline established)
+- **A**SSESS: Execute POST-tests, analyze with specialized agents
+
+### **Key Principles:**
+1. **PRE-tests MUST pass** before any code changes (establish baseline)
+2. **POST-tests define success** (clear acceptance criteria)
+3. **Integration tests prevent surprises** (validate component connections)
+4. **VALIDATE phase NEVER delegated** (user approval through orchestrator only)
+5. **Parallelize agent analysis** when possible (efficiency)
+
+**Full Documentation:** See `docs/workflows/rpvea-agent-integration.md`
+
+---
+
 ## SUBAGENT USAGE GUIDE
 
-This project uses 4 specialized subagents located in `.claude/agents/`:
+This project uses 5 specialized subagents located in `.claude/agents/`:
 
 ### 1. @benchmark-analyst
 **When to use:**
@@ -86,6 +108,31 @@ This project uses 4 specialized subagents located in `.claude/agents/`:
 "Check if GPUs are ready for benchmark"
 "Suggest optimal GPU allocation for dual-model inference"
 ```
+
+### 5. @test-architect (NEW - Critical for Quality)
+**When to use:**
+- **PREPARE phase:** Generate PRE/POST/Integration tests (Tier 2/3 mandatory)
+- **VALIDATE phase:** Execute PRE-tests to establish baseline
+- **ASSESS phase:** Evaluate test effectiveness and coverage
+
+**What it prevents:**
+- Function name typos (llama3.1 vs llama-3.1)
+- Parameter mismatches (batch_size vs batchSize)
+- Schema violations (wrong config structure)
+- Integration failures (incompatible data types)
+
+**Example invocation:**
+```
+"@test-architect create testing strategy for embedding benchmark"
+"@test-architect generate PRE-tests for Llama 70B configuration"
+"@test-architect evaluate test coverage for completed benchmark"
+```
+
+**Key Value:**
+- **PRE-tests:** Establish baseline (what works NOW)
+- **POST-tests:** Define success criteria (acceptance tests)
+- **Integration tests:** Validate component connections
+- **Time ROI:** 30 min testing prevents 2-3 hours debugging
 
 ---
 

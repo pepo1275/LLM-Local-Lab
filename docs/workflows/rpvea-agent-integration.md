@@ -1,0 +1,703 @@
+# RPVEA-A: Agent-Augmented Methodology
+
+**Version:** 1.0
+**Created:** 2025-10-02
+**Status:** Active - LLM-Local-Lab Implementation
+
+---
+
+## 🎯 Core Principle
+
+**RPVEA-A = RPVEA + Specialized Agents**
+
+```
+Claude principal (Orchestrator) → Delegates to specialized agents → Synthesizes results
+```
+
+**Key Insight:** Leverage agent expertise while maintaining accountability through orchestrator.
+
+---
+
+## 📊 RPVEA Phases with Agent Integration
+
+### **Phase R: REVIEW (Context & State Analysis)**
+
+**Responsible:** Claude principal (orchestrator)
+**Optional Delegations:**
+
+| Task | Agent | Tier 1 | Tier 2 | Tier 3 |
+|------|-------|--------|--------|--------|
+| Analyze historical benchmarks | @benchmark-analyst | ❌ | If exists | ✅ Always |
+| Evaluate hardware readiness | @gpu-optimizer | ❌ | If complex | ✅ Always |
+| Review technical documentation | @documentation-writer | ❌ | ❌ | If extensive |
+| Identify testing requirements | @test-architect | ❌ | ❌ | ✅ Always |
+
+**Pattern:**
+```yaml
+REVIEW (Orchestrator):
+  Claude:
+    1. Read project context (CLAUDE.md, current-status.md)
+    2. Understand user request
+    3. Identify areas requiring specialized expertise
+    4. Delegate to agents (parallel when possible)
+    5. Synthesize findings into unified review
+
+  Example (Tier 3):
+    @benchmark-analyst (parallel):
+      "Analyze historical performance for similar models"
+      → Returns: "Llama 8B: 45s/doc, Mistral 7B: 38s/doc"
+
+    @gpu-optimizer (parallel):
+      "Evaluate system readiness for 70B model"
+      → Returns: "Dual-GPU required, Q4 quantization recommended"
+
+    @test-architect (parallel):
+      "Identify potential integration risks"
+      → Returns: "3 critical interfaces, 5 edge cases detected"
+
+  Claude synthesizes:
+    "Based on historical data (benchmark-analyst), hardware analysis
+     (gpu-optimizer), and risk assessment (test-architect), here's
+     the comprehensive review..."
+```
+
+**Time Allocation:**
+- Tier 1: 5 min (Claude only)
+- Tier 2: 10-15 min (Claude + 1 agent)
+- Tier 3: 15-20 min (Claude + 2-3 agents parallel)
+
+---
+
+### **Phase P: PREPARE (Testing Strategy & Setup)**
+
+**Responsible:** Claude principal + Specialized agents
+**Critical Delegations:**
+
+| Task | Agent | Mandatory? | Output |
+|------|-------|------------|--------|
+| Generate testing strategy | @test-architect | Tier 2/3 | PRE/POST/Integration tests |
+| Create optimal config | @model-configurator | If new model | YAML config file |
+| Validate GPU readiness | @gpu-optimizer | Tier 3 | System validation report |
+| Prepare documentation templates | @documentation-writer | Tier 3 | Markdown templates |
+
+**Pattern:**
+```yaml
+PREPARE (Hybrid - Sequential + Parallel):
+
+  Step 1 (Sequential - Claude):
+    - Identify files to modify
+    - Map dependencies and integration points
+    - Define scope boundaries
+
+  Step 2 (Parallel - Agents):
+    @test-architect:
+      Task: "Generate complete testing strategy for [feature]"
+
+      Deliverables:
+        - tests/pre/test_baseline_YYYYMMDD.py
+        - tests/post/test_acceptance_YYYYMMDD.py
+        - tests/integration/test_connections_YYYYMMDD.py
+        - docs/testing/strategy_YYYYMMDD.md
+
+    @model-configurator (if applicable):
+      Task: "Generate optimal config for [model] on dual RTX 5090"
+
+      Deliverables:
+        - models/configs/model-name-variant.yaml
+        - Recommended: batch_size, quantization, GPU allocation
+
+    @gpu-optimizer (if Tier 3):
+      Task: "Validate system readiness and suggest optimizations"
+
+      Deliverables:
+        - GPU utilization check
+        - VRAM availability
+        - Thermal status
+        - Suggested parallelization strategy
+
+  Step 3 (Sequential - Claude):
+    - Integrate all agent outputs
+    - Create unified preparation plan
+    - Document testing strategy
+    - Prepare execution environment
+```
+
+**Time Allocation:**
+- Tier 1: 5 min (Claude only)
+- Tier 2: 15-20 min (Claude + @test-architect)
+- Tier 3: 30-40 min (Claude + 3-4 agents)
+
+**Critical: @test-architect Integration**
+
+The @test-architect agent is **mandatory for Tier 2/3** because:
+
+1. **Prevents Common Errors:**
+   - Function name typos (llama3.1 vs llama-3.1)
+   - Parameter mismatches (batch_size vs batchSize)
+   - Schema violations (wrong config structure)
+   - Integration failures (incompatible data types)
+
+2. **Establishes Baseline:**
+   - PRE-tests document what currently works
+   - Validates system state before modifications
+   - Catches broken baseline early (HALT if tests fail)
+
+3. **Defines Success Criteria:**
+   - POST-tests formalize acceptance criteria
+   - No ambiguity about "done"
+   - Regression detection (compare PRE vs POST)
+
+4. **Validates Integration:**
+   - Tests connections between components
+   - Catches data flow incompatibilities
+   - Prevents runtime surprises
+
+**Example Output:**
+```python
+# Generated by @test-architect
+
+# tests/pre/test_baseline_embedding_20251002.py
+def test_pytorch_cuda_available():
+    """GPU acceleration must be available"""
+    assert torch.cuda.is_available()
+
+def test_model_name_valid():
+    """Validate model exists on Hugging Face Hub"""
+    from huggingface_hub import model_info
+    info = model_info("paraphrase-multilingual-MiniLM-L12-v2")
+    assert info is not None
+
+def test_config_schema_correct():
+    """Document expected configuration structure"""
+    config = {"batch_size": 32, "timeout": 30}
+    assert "batch_size" in config
+    assert isinstance(config["batch_size"], int)
+
+# tests/post/test_acceptance_embedding_20251002.py
+def test_benchmark_completes_successfully():
+    """Benchmark must complete without errors"""
+    result = subprocess.run(
+        ["python", "benchmarks/scripts/embedding_benchmark.py"],
+        capture_output=True,
+        timeout=300
+    )
+    assert result.returncode == 0
+
+def test_gpu_speedup_achieved():
+    """GPU must show significant speedup vs CPU"""
+    speedup = parse_speedup_from_output()
+    assert speedup > 2.0  # At least 2x faster
+```
+
+---
+
+### **Phase V: VALIDATE (Plan Approval)**
+
+**Responsible:** Claude principal ONLY
+**Delegations:** ❌ NONE - NEVER DELEGATE THIS PHASE
+
+**Critical Rule:** User approval MUST come through orchestrator for:
+- Accountability (clear responsibility)
+- Consistency (same agent throughout)
+- Trust (user knows who to approve)
+
+**Pattern:**
+```yaml
+VALIDATE (Solo Claude - No Exceptions):
+
+  1. Execute PRE-tests (generated by @test-architect)
+     - All PRE-tests MUST pass
+     - If any fail → HALT and report (baseline broken)
+     - If all pass → Baseline established ✅
+
+  2. Present unified plan to user:
+     - Review summary (synthesized from agents)
+     - Preparation completed (testing strategy, configs)
+     - PRE-test results (baseline validated)
+     - Execution plan (step by step)
+     - Time estimate
+     - Risk assessment
+
+  3. Wait for EXPLICIT approval
+     - User responds: "Approved" or "Proceed"
+     - If feedback → Address concerns
+     - If rejection → Return to REVIEW/PREPARE
+
+  4. Only proceed to EXECUTE after sign-off
+```
+
+**Example:**
+```
+Claude: "VALIDATE Phase Results:
+
+✅ PRE-tests executed: 5/5 passing
+  - PyTorch + CUDA available
+  - Model name validated on Hugging Face Hub
+  - GPU memory sufficient (64GB available)
+  - Configuration schema correct
+  - Integration points validated
+
+📋 Execution Plan:
+  1. Install dependencies (pip install -r requirements.txt)
+  2. Execute embedding benchmark (15-20 min)
+  3. Validate results with POST-tests
+  4. Analyze with @benchmark-analyst
+  5. Document with @documentation-writer
+
+⏱️ Estimated Time: 25-30 minutes
+⚠️ Risks: Model download may take 5-10 min on first run
+
+Proceed with execution? (Yes/No)"
+
+User: "Yes"
+
+Claude: "Proceeding to EXECUTE phase..."
+```
+
+**Time Allocation:**
+- All Tiers: 5-15 min (PRE-test execution + plan presentation)
+
+---
+
+### **Phase E: EXECUTE (Implementation)**
+
+**Responsible:** Mixed - Claude leads, agents support
+**Delegation Strategy:**
+
+| Task Type | Responsible | Rationale |
+|-----------|-------------|-----------|
+| Core code changes | Claude principal | Direct visibility, quality control |
+| Benchmark execution | Claude principal | Real-time output monitoring |
+| Config generation | @model-configurator | Specialized parameter optimization |
+| Documentation writing | @documentation-writer | Narrative and structure expertise |
+
+**Pattern:**
+```yaml
+EXECUTE (Sequential with Selective Parallelization):
+
+  Sequential (Critical Path):
+    Claude:
+      1. Install dependencies
+      2. Execute benchmark/implementation
+      3. Monitor outputs in real-time
+      4. Handle errors immediately
+      5. Save results
+
+  Parallel (Non-blocking):
+    @documentation-writer (if Tier 3):
+      - Prepare documentation templates while benchmark runs
+      - Draft initial sections with known information
+      - Ready to finalize when results available
+```
+
+**When to Delegate:**
+- ✅ Config file generation (model-configurator expertise)
+- ✅ Documentation structure (documentation-writer)
+- ❌ Core code changes (orchestrator maintains control)
+- ❌ Benchmark execution (orchestrator monitors)
+
+**Time Allocation:**
+- Tier 1: 10-20 min
+- Tier 2: 30-60 min
+- Tier 3: 2-4 hours
+
+---
+
+### **Phase A: ASSESS (Post-Validation & Learning)**
+
+**Responsible:** Claude orchestrates, ALL agents analyze
+**Maximum Delegation Phase:**
+
+| Analysis Type | Agent | Output |
+|---------------|-------|--------|
+| Performance metrics | @benchmark-analyst | Speedup, throughput, comparisons |
+| Configuration effectiveness | @model-configurator | Optimal params validated |
+| GPU utilization | @gpu-optimizer | Resource usage, bottlenecks |
+| Test effectiveness | @test-architect | Coverage analysis, gaps |
+| Documentation quality | @documentation-writer | Summary, registry updates |
+
+**Pattern:**
+```yaml
+ASSESS (Massive Parallel Delegation):
+
+  Step 1 (Sequential - Claude):
+    - Execute POST-tests
+    - Validate acceptance criteria met
+    - Compare PRE vs POST (regression check)
+
+  Step 2 (Parallel - All Agents):
+    @benchmark-analyst:
+      "Analyze embedding benchmark results vs historical baseline"
+      → Returns:
+        - GPU speedup: 6.9x (excellent)
+        - Throughput: 2,398 docs/sec
+        - Comparison: 15% faster than expected
+        - Recommendation: Increase batch size for 5% gain
+
+    @model-configurator:
+      "Evaluate if configuration was optimal"
+      → Returns:
+        - Batch size: 32 (good, could try 64)
+        - Quantization: N/A for embeddings
+        - GPU allocation: Single GPU sufficient
+        - Recommendation: Multi-GPU not needed for this workload
+
+    @gpu-optimizer:
+      "Analyze GPU utilization patterns"
+      → Returns:
+        - GPU 0: 87% avg utilization (good)
+        - GPU 1: 0% (not used, expected)
+        - VRAM peak: 4.2GB / 32GB (efficient)
+        - Bottleneck: None detected
+        - Recommendation: Current setup optimal
+
+    @test-architect:
+      "Evaluate test coverage and effectiveness"
+      → Returns:
+        - PRE-tests: Caught 1 critical error (model name)
+        - POST-tests: Validated all acceptance criteria
+        - Integration tests: All passing
+        - Coverage gaps: Consider testing with larger batches
+        - Recommendation: Add parametrized tests for batch sizes
+
+    @documentation-writer:
+      "Generate comprehensive summary and update registry"
+      → Returns:
+        - docs/models/models-registry.md updated
+        - Benchmark summary created
+        - Key findings documented
+        - Recommendations captured
+
+  Step 3 (Sequential - Claude):
+    - Synthesize all assessments
+    - Create unified learning document
+    - Update knowledge base
+    - Git commit with comprehensive message
+    - Update current-status.md
+```
+
+**Time Allocation:**
+- Tier 1: 5 min (Claude only)
+- Tier 2: 15-20 min (Claude + @benchmark-analyst + @test-architect)
+- Tier 3: 30-40 min (Claude + all 5 agents)
+
+---
+
+## 🎯 Tier-Based Agent Usage
+
+### **Tier 1: Quick Wins (< 30 min)**
+
+**Agent Usage:** ❌ None (overhead > benefit)
+
+**Process:** Quick RPVEA (Claude only)
+- R: 5 min context check
+- P: Mental testing plan
+- V: Quick notification
+- E: Implement + basic validation
+- A: Brief summary
+
+**Example:** Typo fixes, config adjustments, documentation updates
+
+---
+
+### **Tier 2: Standard Changes (30 min - 4 hours)**
+
+**Agent Usage:** Selective (testing + analysis)
+
+**Process:** RPVEA Lite + Agents
+
+| Phase | Agents | Purpose |
+|-------|--------|---------|
+| R | ❌ None (unless historical data) | Keep review quick |
+| P | ✅ @test-architect | Generate PRE/POST tests |
+| V | ❌ None (Claude validates) | Direct user approval |
+| E | ❌ None (Claude implements) | Maintain control |
+| A | ✅ @benchmark-analyst + @test-architect | Deep analysis |
+
+**Example:** New functions, component updates, benchmark execution
+
+**Typical Workflow:**
+```yaml
+REVIEW (Claude - 10 min):
+  - Read relevant files
+  - Understand current patterns
+  - Identify impact areas
+
+PREPARE (Claude + @test-architect - 15 min):
+  @test-architect:
+    - Generate PRE-tests (baseline)
+    - Generate POST-tests (acceptance)
+    - Generate integration tests
+
+  Claude:
+    - Review test strategy
+    - Prepare execution plan
+
+VALIDATE (Claude - 10 min):
+  - Execute PRE-tests (must pass)
+  - Present plan to user
+  - Wait for approval
+
+EXECUTE (Claude - 30-60 min):
+  - Implement changes
+  - Monitor execution
+  - Save results
+
+ASSESS (Claude + Agents - 20 min):
+  @benchmark-analyst:
+    - Analyze performance
+
+  @test-architect:
+    - Evaluate test effectiveness
+
+  Claude:
+    - Synthesize findings
+    - Document learnings
+```
+
+---
+
+### **Tier 3: Major Changes (> 4 hours or architectural)**
+
+**Agent Usage:** Full (all 5 agents)
+
+**Process:** Full RPVEA-A
+
+| Phase | Agents | Purpose |
+|-------|--------|---------|
+| R | ✅ 2-3 agents parallel | Comprehensive analysis |
+| P | ✅ 3-4 agents parallel | Complete preparation |
+| V | ❌ None (Claude only) | User accountability |
+| E | ✅ 1-2 agents parallel | Specialized tasks |
+| A | ✅ All 5 agents parallel | Deep assessment |
+
+**Example:** New model integration, architecture changes, new modules
+
+**Typical Workflow:**
+```yaml
+REVIEW (Claude + Agents - 20 min):
+  @benchmark-analyst (parallel):
+    - Analyze historical performance
+
+  @gpu-optimizer (parallel):
+    - Evaluate hardware readiness
+
+  @test-architect (parallel):
+    - Identify integration risks
+
+  Claude synthesizes all findings
+
+PREPARE (Claude + Agents - 40 min):
+  @test-architect:
+    - Generate comprehensive test suite
+
+  @model-configurator:
+    - Create optimal configuration
+
+  @gpu-optimizer:
+    - Validate system readiness
+
+  @documentation-writer:
+    - Prepare documentation templates
+
+  Claude integrates all preparations
+
+VALIDATE (Claude - 15 min):
+  - Execute PRE-tests
+  - Present unified plan
+  - Wait for explicit approval
+
+EXECUTE (Claude + Agents - 2-4 hours):
+  Claude (sequential):
+    - Core implementation
+    - Benchmark execution
+
+  @documentation-writer (parallel):
+    - Draft documentation while running
+
+ASSESS (Claude + All Agents - 40 min):
+  All 5 agents analyze in parallel
+  Claude synthesizes comprehensive report
+```
+
+---
+
+## 🚫 Anti-Patterns to Avoid
+
+### **1. Delegating VALIDATE Phase**
+❌ **Never do this:**
+```yaml
+VALIDATE:
+  @test-architect: "Approve this plan with the user"
+```
+
+✅ **Always:**
+```yaml
+VALIDATE:
+  Claude: Present plan and wait for user approval
+```
+
+**Reason:** User trust requires single point of accountability
+
+---
+
+### **2. Using Agents for Tier 1 Tasks**
+❌ **Wasteful:**
+```yaml
+Task: Fix typo in README
+PREPARE:
+  @test-architect: "Generate tests for typo fix"
+```
+
+✅ **Appropriate:**
+```yaml
+Task: Fix typo in README
+PREPARE:
+  Claude: Quick mental check, no tests needed
+```
+
+**Reason:** Overhead > benefit for trivial tasks
+
+---
+
+### **3. Serial Agent Calls When Parallelizable**
+❌ **Inefficient:**
+```yaml
+ASSESS:
+  1. Call @benchmark-analyst (wait 5 min)
+  2. Call @gpu-optimizer (wait 5 min)
+  3. Call @test-architect (wait 5 min)
+Total: 15 min
+```
+
+✅ **Efficient:**
+```yaml
+ASSESS:
+  Parallel:
+    - @benchmark-analyst
+    - @gpu-optimizer
+    - @test-architect
+Total: 5 min
+```
+
+**Reason:** Agents are independent, parallelize when possible
+
+---
+
+### **4. Delegating Architectural Decisions**
+❌ **Dangerous:**
+```yaml
+@model-configurator: "Decide if we should use vLLM or Ollama"
+```
+
+✅ **Safe:**
+```yaml
+Claude:
+  1. Gather options from @model-configurator
+  2. Synthesize pros/cons
+  3. Recommend to user
+  4. User decides
+```
+
+**Reason:** Orchestrator maintains strategic control
+
+---
+
+## 📊 Decision Matrix: When to Use Which Agents
+
+| Scenario | Tier | Agents | Phases |
+|----------|------|--------|--------|
+| Fix typo in code | 1 | None | Claude only |
+| Run existing benchmark | 2 | @test-architect, @benchmark-analyst | P, A |
+| Add new utility function | 2 | @test-architect | P, A |
+| Test new model (Llama 8B) | 2-3 | @test-architect, @model-configurator, @benchmark-analyst | P, V, A |
+| Integrate new framework (vLLM) | 3 | All 5 agents | R, P, E, A |
+| Architecture refactor | 3 | All 5 agents | R, P, E, A |
+| Optimize dual-GPU setup | 3 | @gpu-optimizer, @model-configurator, @benchmark-analyst | R, P, A |
+
+---
+
+## 🎯 Success Metrics
+
+### **Efficiency Gains:**
+- ⏱️ **Time saved:** 30-40% (parallelization in R and A phases)
+- 🐛 **Errors prevented:** 70%+ (PRE-tests catch issues early)
+- 📚 **Documentation quality:** 100% (automated by @documentation-writer)
+
+### **Quality Improvements:**
+- ✅ **Baseline always established** (@test-architect PRE-tests)
+- ✅ **Success criteria formalized** (@test-architect POST-tests)
+- ✅ **Integration validated** (connection tests)
+- ✅ **Performance analyzed** (@benchmark-analyst insights)
+- ✅ **Configuration optimized** (@model-configurator expertise)
+
+### **Knowledge Capture:**
+- 📊 **Automated analysis** (agents generate insights)
+- 📝 **Consistent documentation** (@documentation-writer)
+- 🔍 **Deep expertise applied** (specialized agents)
+
+---
+
+## 🔄 Continuous Improvement
+
+### **Weekly Assessment:**
+- What tier classifications worked well?
+- Were agent delegations effective?
+- Did parallelization improve efficiency?
+- Any agents underutilized or overused?
+
+### **Adjustments Based On:**
+- User feedback on process
+- Development velocity impact
+- Quality outcomes
+- Agent effectiveness metrics
+
+---
+
+## 📝 Quick Reference
+
+### **Agent Delegation Cheat Sheet:**
+
+```yaml
+# REVIEW Phase
+When to use agents:
+  - Historical data exists → @benchmark-analyst
+  - Complex hardware → @gpu-optimizer
+  - Risk assessment needed → @test-architect
+
+# PREPARE Phase
+Always use:
+  - @test-architect (Tier 2/3)
+Sometimes use:
+  - @model-configurator (new models)
+  - @gpu-optimizer (Tier 3)
+  - @documentation-writer (Tier 3)
+
+# VALIDATE Phase
+NEVER use agents → Claude only
+
+# EXECUTE Phase
+Rarely use agents:
+  - @documentation-writer (parallel drafting)
+  - @model-configurator (config generation)
+
+# ASSESS Phase
+Always use (Tier 2/3):
+  - @benchmark-analyst (performance)
+  - @test-architect (test effectiveness)
+Sometimes use (Tier 3):
+  - @model-configurator (config review)
+  - @gpu-optimizer (resource analysis)
+  - @documentation-writer (summary)
+```
+
+---
+
+**Version History:**
+- v1.0 (2025-10-02): Initial RPVEA-A framework with 5 specialized agents
+- Focus: Testing-first approach with @test-architect integration
+
+**Next Steps:**
+- Apply to embedding benchmark validation (Tier 2)
+- Iterate based on real-world results
+- Refine agent delegation patterns
