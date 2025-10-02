@@ -1,0 +1,174 @@
+name: Benchmark Report Generator
+
+on:
+  workflow_dispatch:
+    inputs:
+      benchmark_type:
+        description: 'Type of benchmark to run'
+        required: true
+        type: choice
+        options:
+          - embedding
+          - llm-inference
+          - custom
+      model_name:
+        description: 'Model to benchmark (optional)'
+        required: false
+        type: string
+
+  # Trigger on benchmark result commits
+  push:
+    paths:
+      - 'benchmarks/results/raw/*.json'
+
+jobs:
+  generate-report:
+    name: Generate Benchmark Report
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full history for comparisons
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pandas numpy pyyaml matplotlib seaborn
+
+    - name: Find latest benchmark result
+      id: find_result
+      run: |
+        LATEST=$(ls -t benchmarks/results/raw/*.json 2>/dev/null | head -1 || echo "")
+        if [ -z "$LATEST" ]; then
+          echo "No benchmark results found"
+          echo "found=false" >> $GITHUB_OUTPUT
+        else
+          echo "Latest result: $LATEST"
+          echo "found=true" >> $GITHUB_OUTPUT
+          echo "file=$LATEST" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Generate markdown report
+      if: steps.find_result.outputs.found == 'true'
+      run: |
+        python -c "
+        import json
+        import os
+        from datetime import datetime
+        from pathlib import Path
+
+        result_file = '${{ steps.find_result.outputs.file }}'
+        with open(result_file) as f:
+            data = json.load(f)
+
+        # Extract filename for report name
+        filename = Path(result_file).stem
+        report_path = f'benchmarks/results/reports/{filename}_report.md'
+
+        # Generate report
+        report = f'''# Benchmark Report: {filename}
+
+**Generated**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+**Source**: {result_file}
+
+## Summary
+
+'''
+
+        # Add model info if available
+        if 'model' in data:
+            report += f'''**Model**: {data['model']}
+'''
+        if 'device' in data:
+            report += f'''**Device**: {data['device']}
+'''
+
+        # Add results if available
+        if 'results' in data and 'stats' in data['results']:
+            stats = data['results']['stats']
+            report += f'''
+## Performance Metrics
+
+| Metric | Value |
+|--------|-------|
+'''
+            for key, value in stats.items():
+                formatted_key = key.replace('_', ' ').title()
+                report += f'''| {formatted_key} | {value} |
+'''
+
+        # Add GPU memory if available
+        if 'results' in data and 'gpu_memory' in data['results']:
+            report += f'''
+## GPU Memory Usage
+
+| GPU | Allocated | Reserved |
+|-----|-----------|----------|
+'''
+            mem = data['results']['gpu_memory']
+            for key, value in mem.items():
+                if 'allocated' in key:
+                    gpu_num = key.split('_')[1]
+                    allocated = value
+                    reserved_key = f'gpu_{gpu_num}_reserved_gb'
+                    reserved = mem.get(reserved_key, 'N/A')
+                    report += f'''| GPU {gpu_num} | {allocated} GB | {reserved} GB |
+'''
+
+        report += f'''
+## Raw Data
+
+Full results available in: `{result_file}`
+'''
+
+        # Write report
+        os.makedirs(os.path.dirname(report_path), exist_ok=True)
+        with open(report_path, 'w') as f:
+            f.write(report)
+
+        print(f'Report generated: {report_path}')
+        print(report)
+        "
+
+    - name: Commit report
+      if: steps.find_result.outputs.found == 'true'
+      run: |
+        git config user.name 'github-actions[bot]'
+        git config user.email 'github-actions[bot]@users.noreply.github.com'
+        git add benchmarks/results/reports/
+        git diff --staged --quiet || git commit -m "docs: auto-generated benchmark report"
+        # Note: Pushing requires write permissions
+      continue-on-error: true
+
+    - name: Create issue comment with results
+      if: steps.find_result.outputs.found == 'true' && github.event_name == 'push'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const resultFile = '${{ steps.find_result.outputs.file }}';
+          const data = JSON.parse(fs.readFileSync(resultFile, 'utf8'));
+
+          let comment = '## 🚀 New Benchmark Results\n\n';
+          comment += `**File**: \`${resultFile}\`\n\n`;
+
+          if (data.results && data.results.stats) {
+            comment += '### Performance Summary\n\n';
+            const stats = data.results.stats;
+            for (const [key, value] of Object.entries(stats)) {
+              const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+              comment += `- **${formattedKey}**: ${value}\n`;
+            }
+          }
+
+          // Create issue if this is a significant result
+          // (You can customize this logic)
+          console.log(comment);
+      continue-on-error: true

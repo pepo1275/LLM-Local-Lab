@@ -1,0 +1,71 @@
+name: Benchmark Request
+description: Request a new model benchmark
+title: "[BENCHMARK]: "
+labels: ["benchmark", "enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Request a benchmark for a specific model or configuration.
+
+  - type: input
+    id: model_name
+    attributes:
+      label: Model Name
+      description: Name of the model to benchmark
+      placeholder: "e.g., meta-llama/Llama-3.1-70B"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: quantization
+    attributes:
+      label: Quantization
+      description: Desired quantization level
+      options:
+        - FP16 (Full Precision)
+        - Q8 (8-bit)
+        - Q5 (5-bit)
+        - Q4 (4-bit)
+        - Q3 (3-bit)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: gpu_config
+    attributes:
+      label: GPU Configuration
+      description: Single or dual-GPU setup
+      options:
+        - Single GPU
+        - Dual GPU (tensor parallelism)
+        - Dual GPU (pipeline parallelism)
+        - Auto (let configurator decide)
+    validations:
+      required: true
+
+  - type: textarea
+    id: test_focus
+    attributes:
+      label: Test Focus
+      description: What aspects should the benchmark focus on?
+      placeholder: |
+        - Throughput (tokens/second)
+        - Latency (time to first token)
+        - Context length handling
+        - VRAM usage
+        - Multi-turn conversation
+        - Specific use case (coding, reasoning, etc.)
+
+  - type: textarea
+    id: comparison
+    attributes:
+      label: Comparison Target (Optional)
+      description: Compare against another model or configuration
+      placeholder: "e.g., Compare Q4 vs Q5 for same model"
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context
+      description: Any other relevant information

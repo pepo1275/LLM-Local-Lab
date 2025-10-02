@@ -1,0 +1,206 @@
+name: CI - Code Validation
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  lint-and-format:
+    name: Lint and Format Check
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install black flake8 mypy
+        pip install -r requirements.txt
+
+    - name: Check code formatting with Black
+      run: |
+        black --check --diff .
+      continue-on-error: false
+
+    - name: Lint with Flake8
+      run: |
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=100 --statistics
+      continue-on-error: true
+
+    - name: Type check with MyPy
+      run: |
+        mypy benchmarks/scripts/ utils/ --ignore-missing-imports
+      continue-on-error: true
+
+  test-scripts:
+    name: Test Benchmark Scripts
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-cov
+        pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+        pip install -r requirements.txt
+
+    - name: Validate script imports
+      run: |
+        python -c "import sys; sys.path.insert(0, 'benchmarks/scripts'); from llm_inference_benchmark import LLMBenchmark; print('LLM benchmark imports OK')"
+        python -c "import sys; sys.path.insert(0, 'benchmarks/scripts'); from embedding_benchmark import setup_utf8_encoding; print('Embedding benchmark imports OK')"
+
+    - name: Check for syntax errors
+      run: |
+        python -m py_compile benchmarks/scripts/*.py
+
+    - name: Run tests (if exist)
+      run: |
+        if [ -d "tests" ]; then pytest tests/ -v; else echo "No tests directory found"; fi
+      continue-on-error: true
+
+  validate-configs:
+    name: Validate Configuration Files
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install PyYAML
+      run: pip install pyyaml
+
+    - name: Validate YAML configs
+      run: |
+        python -c "
+        import yaml
+        import os
+        from pathlib import Path
+
+        config_dirs = ['models/configs', 'benchmarks/configs']
+        errors = []
+
+        for config_dir in config_dirs:
+            if os.path.exists(config_dir):
+                for yaml_file in Path(config_dir).rglob('*.yaml'):
+                    try:
+                        with open(yaml_file) as f:
+                            yaml.safe_load(f)
+                        print(f'✓ {yaml_file}')
+                    except Exception as e:
+                        errors.append(f'{yaml_file}: {e}')
+                        print(f'✗ {yaml_file}: {e}')
+
+        if errors:
+            print('\nValidation errors found:')
+            for error in errors:
+                print(f'  - {error}')
+            exit(1)
+        else:
+            print('\nAll YAML files valid!')
+        "
+
+    - name: Validate pyproject.toml
+      run: |
+        python -c "import tomllib; f = open('pyproject.toml', 'rb'); tomllib.load(f); print('pyproject.toml is valid')" || \
+        python -c "import toml; toml.load('pyproject.toml'); print('pyproject.toml is valid')"
+
+  check-documentation:
+    name: Check Documentation
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Check README exists
+      run: test -f README.md
+
+    - name: Check CLAUDE.md exists
+      run: test -f CLAUDE.md
+
+    - name: Check docs structure
+      run: |
+        test -d docs/hardware
+        test -d docs/models
+        test -d docs/workflows
+
+    - name: Verify markdown links (basic check)
+      run: |
+        python -c "
+        import re
+        from pathlib import Path
+
+        md_files = list(Path('.').rglob('*.md'))
+        broken_links = []
+
+        for md_file in md_files:
+            content = md_file.read_text(encoding='utf-8', errors='ignore')
+            # Find relative links
+            links = re.findall(r'\[.*?\]\(((?!http)[^\)]+)\)', content)
+
+            for link in links:
+                # Remove anchors
+                clean_link = link.split('#')[0]
+                if clean_link and not clean_link.startswith('http'):
+                    link_path = (md_file.parent / clean_link).resolve()
+                    if not link_path.exists():
+                        broken_links.append(f'{md_file}: {link}')
+
+        if broken_links:
+            print('Broken links found:')
+            for link in broken_links[:10]:  # Show first 10
+                print(f'  - {link}')
+            # Don't fail on broken links, just warn
+        else:
+            print('No broken links found!')
+        "
+
+  security-check:
+    name: Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install safety
+      run: pip install safety
+
+    - name: Check for known vulnerabilities
+      run: |
+        pip install -r requirements.txt
+        safety check --ignore 70612
+      continue-on-error: true
+
+    - name: Check for secrets
+      run: |
+        if grep -r "sk-[a-zA-Z0-9]\{48\}" .; then
+          echo "Potential API key found!"
+          exit 1
+        fi
+        echo "No obvious secrets found"
