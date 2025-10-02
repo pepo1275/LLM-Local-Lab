@@ -1,6 +1,6 @@
 # LLM-Local-Lab
 
-![CI Status](https://github.com/YOURUSERNAME/LLM-Local-Lab/workflows/CI%20-%20Code%20Validation/badge.svg)
+![CI Status](https://github.com/pepo1275/LLM-Local-Lab/workflows/CI%20-%20Code%20Validation/badge.svg)
 ![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
 ![PyTorch](https://img.shields.io/badge/pytorch-2.9+-red.svg)
 ![CUDA](https://img.shields.io/badge/cuda-13.0-green.svg)
