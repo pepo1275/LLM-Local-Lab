@@ -34,11 +34,12 @@ Each entry includes:
 - Device: CUDA:0
 - Batch size: Default
 
-**Performance**:
-- **CPU Baseline**: 193.5 docs/second
-- **GPU Throughput**: 1,326.9 docs/second
-- **Acceleration**: 6.9x faster on GPU
-- **VRAM Usage**: <1 GB
+**Performance** (2025-10-02 Re-test):
+- **GPU Throughput**: 553.3 docs/second (100 docs batch)
+- **Latency**: 2.0ms per document
+- **Total Time**: 0.18s (100 docs)
+- **VRAM Usage**: ~1 GB (estimated)
+- **Device**: cuda:0 (⚠️ Note: Listed as "CPU baseline" but ran on GPU)
 
 **Quality Notes**:
 - Multilingual support (384-dim embeddings)
@@ -65,11 +66,15 @@ Each entry includes:
 - Device: CUDA:0
 - Batch size: 32 (for large batch test)
 
-**Performance**:
-- **Small Batch** (100 docs): 1,326.9 docs/second
-- **Large Batch** (1,000 docs): 2,398.6 docs/second
-- **VRAM Usage**: 2.56 GB
-- **Free VRAM**: 28.41 GB remaining
+**Performance** (2025-10-02 Re-test):
+- **Small Batch** (100 docs): 1,749.2 docs/second
+- **Large Batch** (1,000 docs): 2,422.9 docs/second
+- **Latency**: 1.0ms per doc (small), 0.41ms (large)
+- **Total Time**: 0.06s (100 docs), 0.41s (1000 docs)
+- **VRAM Usage**: 2.56 GB (peak)
+- **VRAM Reserved**: 2.59 GB
+- **Free VRAM**: 28.41 GB remaining (88% unused)
+- **Batch Scaling**: 1.39x (⚠️ Suboptimal - needs larger batches)
 
 **Quality Notes**:
 - Specialized for Spanish legal/administrative documents
